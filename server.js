@@ -46,8 +46,8 @@ function executeApp() {
             "Edit Employees",
             "View Roles",
             "Edit Roles",
-            "View Departments",
-            "Edit Departments"
+            "View store",
+            "Edit store"
         ]
     }).then(responses => {
         switch (responses.menu) {
@@ -63,10 +63,10 @@ function executeApp() {
             case "Edit Roles":
                 editRole();
                 break;
-            case "View Departments":
+            case "View store":
                 showDept();
                 break;
-            case "Edit Departments":
+            case "Edit store":
                 addDept();
                 break;
         }
@@ -103,7 +103,7 @@ function editEmp() {
 
 async function empSum() {
     console.log(' ');
-    await db.query('SELECT e.id, e.first_name AS First_Name, e.last_name AS Last_Name, title AS Title, salary AS Salary, name AS Department, CONCAT(m.first_name, " ", m.last_name) AS Manager FROM employee e LEFT JOIN employee m ON e.manager_id = m.id INNER JOIN role r ON e.role_id = r.id INNER JOIN department d ON r.department_id = d.id', (err, res) => {
+    await db.query('SELECT e.id, e.first_name AS First_Name, e.last_name AS Last_Name, title AS Title, salary AS Salary, name AS store, CONCAT(m.first_name, " ", m.last_name) AS Manager FROM employee e LEFT JOIN employee m ON e.manager_id = m.id INNER JOIN role r ON e.role_id = r.id INNER JOIN store d ON r.store_id = d.id', (err, res) => {
         if (err) throw err;
         console.table(res);
         executeApp();
@@ -129,7 +129,7 @@ async function addEmp() {
         {
             name: "role_id",
             type: "list",
-            message: "Select a department for the employee:",
+            message: "Select a store for the employee:",
             choices: positions.map(obj => obj.title)
         },
         {
@@ -155,7 +155,6 @@ function editEmp() {
         choices: [
             "Add A New Employee",
             "Change Employee Role",
-            // "Change Employee Manager",
             "Remove An Employee",
             "Return To Main Menu"
         ]
@@ -167,9 +166,6 @@ function editEmp() {
             case "Change Employee Role":
                 chngRole();
                 break;
-            // case "Change Employee Manager":
-            //     chngMngr();
-            //     break;
             case "Remove An Employee":
                 remvEmp();
                 break;
@@ -233,7 +229,7 @@ function editRole() {
 async function updtRole() {
     let roles = await db.query('SELECT id, title FROM role');
     roles.push({ id: null, title: "Cancel" });
-    let departments = await db.query('SELECT id, name FROM department');
+    let store = await db.query('SELECT id, name FROM store');
 
     inquirer.prompt([
         {
@@ -262,13 +258,13 @@ async function updtRole() {
             {
                 name: "uptdRoleDept",
                 type: "list",
-                message: "Choose the role's department:",
-                choices: departments.map(obj => obj.name)
+                message: "Choose the role's store:",
+                choices: store.map(obj => obj.name)
             }
         ]).then(answers => {
-            let depID = departments.find(obj => obj.name === answers.uptdRoleDept).id
+            let depID = store.find(obj => obj.name === answers.uptdRoleDept).id
             let roleID = roles.find(obj => obj.title === response.roleName).id
-            db.query("UPDATE role SET title=?, salary=?, department_id=? WHERE id=?", [response.roleName, answers.salary, depID, roleID]);
+            db.query("UPDATE role SET title=?, salary=?, store_id=? WHERE id=?", [response.roleName, answers.salary, depID, roleID]);
             console.log("\x1b[32m", `${response.roleName} was updated.`);
             executeApp();
         })
@@ -277,7 +273,7 @@ async function updtRole() {
 
 async function roleSum() {
     console.log(' ');
-    await db.query('SELECT r.id, title, salary, name AS department FROM role r LEFT JOIN department d ON department_id = d.id', (err, res) => {
+    await db.query('SELECT r.id, title, salary, name AS store FROM role r LEFT JOIN store d ON store_id = d.id', (err, res) => {
         if (err) throw err;
         console.table(res);
         executeApp();
@@ -285,7 +281,7 @@ async function roleSum() {
 };
 
 async function addRole() {
-    let departments = await db.query('SELECT id, name FROM department');
+    let store = await db.query('SELECT id, name FROM store');
 
     inquirer.prompt([
         {
@@ -307,13 +303,13 @@ async function addRole() {
         {
             name: "uptdRoleDept",
             type: "list",
-            message: "Select role department:",
-            choices: departments.map(obj => obj.name)
+            message: "Select role store:",
+            choices: store.map(obj => obj.name)
         }
     ]).then(answers => {
-        let depID = departments.find(obj => obj.name === answers.uptdRoleDept).id
-        db.query("INSERT INTO role (title, salary, department_id) VALUES (?)", [[answers.role, answers.salary, depID]]);
-        console.log("\x1b[32m", `${answers.role} was added. Department: ${answers.uptdRoleDept}`);
+        let depID = store.find(obj => obj.name === answers.uptdRoleDept).id
+        db.query("INSERT INTO role (title, salary, store_id) VALUES (?)", [[answers.role, answers.salary, depID]]);
+        console.log("\x1b[32m", `${answers.role} was added. store: ${answers.uptdRoleDept}`);
         executeApp();
     })
 };
@@ -373,7 +369,7 @@ async function remvRole() {
 
 async function showDept() {
     console.log(' ');
-    await db.query('SELECT id, name AS department FROM department', (err, res) => {
+    await db.query('SELECT id, name AS store FROM store', (err, res) => {
         if (err) throw err;
         console.table(res);
         executeApp();
@@ -385,11 +381,11 @@ async function addDept() {
         {
             name: "dept",
             type: "input",
-            message: "Enter the new department:",
+            message: "Enter the new store:",
         }
     ]).then(answers => {
-        db.query("INSERT INTO department (name) VALUES (?)", [answers.dept]);
-        console.log("\x1b[32m", `${answers.dept} was added to department listing.`);
+        db.query("INSERT INTO store (name) VALUES (?)", [answers.dept]);
+        console.log("\x1b[32m", `${answers.dept} was added to store listing.`);
         executeApp();
     })
 };
