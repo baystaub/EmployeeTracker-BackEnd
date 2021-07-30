@@ -3,393 +3,445 @@ const inquirer = require("inquirer");
 const conTable = require("console.table");
 
 class Database {
-    constructor(config) {
-        this.connection = mysql.createConnection(config);
-    }
+  constructor(config) {
+    this.connection = mysql.createConnection(config);
+  }
 
-    query(sql, args) {
-        return new Promise((resolve, reject) => {
-            this.connection.query(sql, args, (err, rows) => {
-                if (err)
-                    return reject(err);
-                resolve(rows);
-            });
-        });
-    }
+  query(sql, args) {
+    return new Promise((resolve, reject) => {
+      this.connection.query(sql, args, (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      });
+    });
+  }
 
-    close() {
-        return new Promise((resolve, reject) => {
-            this.connection.end(err => {
-                if (err)
-                    return reject(err);
-                resolve();
-            });
-        });
-    }
+  close() {
+    return new Promise((resolve, reject) => {
+      this.connection.end((err) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    });
+  }
 }
 
 const db = new Database({
-    host: "localhost",
-    port: 3306,
-    user: "root",
-    password: "",
-    database: "employee_db"
+  host: "localhost",
+  port: 3306,
+  user: "root",
+  password: "",
+  database: "employee_db",
 });
 
 function executeApp() {
-    inquirer.prompt({
-        name: "menu",
-        type: "list",
-        message: "What would you like to do?",
-        choices: [
-            "View Employees",
-            "Edit Employees",
-            "View Roles",
-            "Edit Roles",
-            "View store",
-            "Edit store"
-        ]
-    }).then(responses => {
-        switch (responses.menu) {
-            case "View Employees":
-                empSum();
-                break;
-            case "Edit Employees":
-                editEmp();
-                break;
-            case "View Roles":
-                roleSum();
-                break;
-            case "Edit Roles":
-                editRole();
-                break;
-            case "View store":
-                showDept();
-                break;
-            case "Edit store":
-                addDept();
-                break;
-        }
+  inquirer
+    .prompt({
+      name: "menu",
+      type: "list",
+      message: "What would you like to do?",
+      choices: [
+        "View Employees",
+        "Edit Employees",
+        "View Roles",
+        "Edit Roles",
+        "View store",
+        "Edit store",
+      ],
+    })
+    .then((responses) => {
+      switch (responses.menu) {
+        case "View Employees":
+          empSum();
+          break;
+        case "Edit Employees":
+          editEmp();
+          break;
+        case "View Roles":
+          roleSum();
+          break;
+        case "Edit Roles":
+          editRole();
+          break;
+        case "View store":
+          showDept();
+          break;
+        case "Edit store":
+          addDept();
+          break;
+      }
     });
 }
 
 function editEmp() {
-    inquirer.prompt({
-        name: "editChoice",
-        type: "list",
-        message: "What would you like to update?",
-        choices: [
-            "Add an Employee",
-            "Employee Role",
-            "Main Menu"
-        ]
-    }).then(response => {
-        switch (response.editChoice) {
-            case "Add an Employee":
-                addEmp();
-                break;
-            case "Employee Role":
-                chngRole();
-                break;
-            case "Employee Manager":
-                chngMngr();
-                break;
-            case "Main Menu":
-                executeApp();
-                break;
-        }
+  inquirer
+    .prompt({
+      name: "editChoice",
+      type: "list",
+      message: "What would you like to update?",
+      choices: ["Add an Employee", "Employee Role", "Main Menu"],
     })
-};
+    .then((response) => {
+      switch (response.editChoice) {
+        case "Add an Employee":
+          addEmp();
+          break;
+        case "Employee Role":
+          chngRole();
+          break;
+        case "Employee Manager":
+          chngMngr();
+          break;
+        case "Main Menu":
+          executeApp();
+          break;
+      }
+    });
+}
 
 async function empSum() {
-    console.log(' ');
-    await db.query('SELECT e.id, e.first_name AS First_Name, e.last_name AS Last_Name, title AS Title, salary AS Salary, name AS store, CONCAT(m.first_name, " ", m.last_name) AS Manager FROM employee e LEFT JOIN employee m ON e.manager_id = m.id INNER JOIN role r ON e.role_id = r.id INNER JOIN store d ON r.store_id = d.id', (err, res) => {
-        if (err) throw err;
-        console.table(res);
-        executeApp();
-    });
-};
+  console.log(" ");
+  await db.query(
+    'SELECT e.id, e.first_name AS First_Name, e.last_name AS Last_Name, title AS Title, salary AS Salary, name AS store, CONCAT(m.first_name, " ", m.last_name) AS Manager FROM employee e LEFT JOIN employee m ON e.manager_id = m.id INNER JOIN role r ON e.role_id = r.id INNER JOIN store d ON r.store_id = d.id',
+    (err, res) => {
+      if (err) throw err;
+      console.table(res);
+      executeApp();
+    }
+  );
+}
 
 async function addEmp() {
-    let positions = await db.query('SELECT id, title FROM role');
-    let managers = await db.query('SELECT id, CONCAT(first_name, " ", last_name) AS Manager FROM employee');
-    managers.unshift({ id: null, Manager: "None" });
+  let positions = await db.query("SELECT id, title FROM role");
+  let managers = await db.query(
+    'SELECT id, CONCAT(first_name, " ", last_name) AS Manager FROM employee'
+  );
+  managers.unshift({ id: null, Manager: "None" });
 
-    inquirer.prompt([
-        {
-            name: "first_name",
-            type: "input",
-            message: "Enter the employee's first name:",
-        },
-        {
-            name: "last_name",
-            type: "input",
-            message: "Enter the employee's last name:",
-        },
-        {
-            name: "role_id",
-            type: "list",
-            message: "Select a store for the employee:",
-            choices: positions.map(obj => obj.title)
-        },
-        {
-            name: "manager",
-            type: "list",
-            message: "Choose a manager:",
-            choices: managers.map(obj => obj.Manager)
-        }
-    ]).then(answers => {
-        let role = positions.find(obj => obj.title === answers.role_id);
-        let manager = managers.find(obj => obj.Manager === answers.manager);
-        db.query("INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?)", [[answers.first_name.trim(), answers.last_name.trim(), role.id, manager.id]]);
-        console.log("\x1b[32m", `${answers.first_name} was added.`);
-        executeApp();
+  inquirer
+    .prompt([
+      {
+        name: "first_name",
+        type: "input",
+        message: "Enter the employee's first name:",
+      },
+      {
+        name: "last_name",
+        type: "input",
+        message: "Enter the employee's last name:",
+      },
+      {
+        name: "role_id",
+        type: "list",
+        message: "Select a store for the employee:",
+        choices: positions.map((obj) => obj.title),
+      },
+      {
+        name: "manager",
+        type: "list",
+        message: "Choose a manager:",
+        choices: managers.map((obj) => obj.Manager),
+      },
+    ])
+    .then((answers) => {
+      let role = positions.find((obj) => obj.title === answers.role_id);
+      let manager = managers.find((obj) => obj.Manager === answers.manager);
+      db.query(
+        "INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?)",
+        [
+          [
+            answers.first_name.trim(),
+            answers.last_name.trim(),
+            role.id,
+            manager.id,
+          ],
+        ]
+      );
+      console.log("\x1b[32m", `${answers.first_name} was added.`);
+      executeApp();
     });
-};
+}
 
 function editEmp() {
-    inquirer.prompt({
-        name: "editChoice",
-        type: "list",
-        message: "What would you like to update?",
-        choices: [
-            "Add A New Employee",
-            "Change Employee Role",
-            "Remove An Employee",
-            "Return To Main Menu"
-        ]
-    }).then(response => {
-        switch (response.editChoice) {
-            case "Add A New Employee":
-                addEmp();
-                break;
-            case "Change Employee Role":
-                chngRole();
-                break;
-            case "Remove An Employee":
-                remvEmp();
-                break;
-            case "Return To Main Menu":
-                executeApp();
-                break;
-        }
+  inquirer
+    .prompt({
+      name: "editChoice",
+      type: "list",
+      message: "What would you like to update?",
+      choices: [
+        "Add A New Employee",
+        "Change Employee Role",
+        "Remove An Employee",
+        "Return To Main Menu",
+      ],
     })
-};
+    .then((response) => {
+      switch (response.editChoice) {
+        case "Add A New Employee":
+          addEmp();
+          break;
+        case "Change Employee Role":
+          chngRole();
+          break;
+        case "Remove An Employee":
+          remvEmp();
+          break;
+        case "Return To Main Menu":
+          executeApp();
+          break;
+      }
+    });
+}
 
 async function remvEmp() {
-    let employees = await db.query('SELECT id, CONCAT(first_name, " ", last_name) AS name FROM employee');
-    employees.push({ id: null, name: "Cancel" });
+  let employees = await db.query(
+    'SELECT id, CONCAT(first_name, " ", last_name) AS name FROM employee'
+  );
+  employees.push({ id: null, name: "Cancel" });
 
-    inquirer.prompt([
-        {
-            name: "employeeName",
-            type: "list",
-            message: "Delete which employee?",
-            choices: employees.map(obj => obj.name)
-        }
-    ]).then(response => {
-        if (response.employeeName != "Cancel") {
-            let termedEmp = employees.find(obj => obj.name === response.employeeName);
-            db.query("DELETE FROM employee WHERE id=?", termedEmp.id);
-            console.log("\x1b[32m", `${response.employeeName} was removed.`);
-        }
-        executeApp();
-    })
-};
+  inquirer
+    .prompt([
+      {
+        name: "employeeName",
+        type: "list",
+        message: "Delete which employee?",
+        choices: employees.map((obj) => obj.name),
+      },
+    ])
+    .then((response) => {
+      if (response.employeeName != "Cancel") {
+        let termedEmp = employees.find(
+          (obj) => obj.name === response.employeeName
+        );
+        db.query("DELETE FROM employee WHERE id=?", termedEmp.id);
+        console.log("\x1b[32m", `${response.employeeName} was removed.`);
+      }
+      executeApp();
+    });
+}
 
 function editRole() {
-    inquirer.prompt({
-        name: "editRoles",
-        type: "list",
-        message: "Please choose an option:",
-        choices: [
-            "Add New Role",
-            "Update Role",
-            "Remove Role",
-            "Return To Main Menu"
-        ]
-    }).then(responses => {
-        switch (responses.editRoles) {
-            case "Add New Role":
-                addRole();
-                break;
-            case "Update Role":
-                updtRole();
-                break;
-            case "Remove Role":
-                remvRole();
-                break;
-            case "Return To Main Menu":
-                executeApp();
-                break;
-        }
+  inquirer
+    .prompt({
+      name: "editRoles",
+      type: "list",
+      message: "Please choose an option:",
+      choices: [
+        "Add New Role",
+        "Update Role",
+        "Remove Role",
+        "Return To Main Menu",
+      ],
     })
-};
+    .then((responses) => {
+      switch (responses.editRoles) {
+        case "Add New Role":
+          addRole();
+          break;
+        case "Update Role":
+          updtRole();
+          break;
+        case "Remove Role":
+          remvRole();
+          break;
+        case "Return To Main Menu":
+          executeApp();
+          break;
+      }
+    });
+}
 
 async function updtRole() {
-    let roles = await db.query('SELECT id, title FROM role');
-    roles.push({ id: null, title: "Cancel" });
-    let store = await db.query('SELECT id, name FROM store');
+  let roles = await db.query("SELECT id, title FROM role");
+  roles.push({ id: null, title: "Cancel" });
+  let store = await db.query("SELECT id, name FROM store");
 
-    inquirer.prompt([
-        {
-            name: "roleName",
-            type: "list",
-            message: "Which role would you like to update?",
-            choices: roles.map(obj => obj.title)
-        }
-    ]).then(response => {
-        if (response.roleName == "Cancel") {
-            executeApp();
-            return;
-        }
-        inquirer.prompt([
-            {
-                name: "salary",
-                type: "input",
-                message: "Enter annual salary:",
-                validate: input => {
-                    if (!isNaN(input)) {
-                        return true;
-                    }
-                    return "Please enter a valid number."
-                }
-            },
-            {
-                name: "uptdRoleDept",
-                type: "list",
-                message: "Choose the role's store:",
-                choices: store.map(obj => obj.name)
-            }
-        ]).then(answers => {
-            let depID = store.find(obj => obj.name === answers.uptdRoleDept).id
-            let roleID = roles.find(obj => obj.title === response.roleName).id
-            db.query("UPDATE role SET title=?, salary=?, store_id=? WHERE id=?", [response.roleName, answers.salary, depID, roleID]);
-            console.log("\x1b[32m", `${response.roleName} was updated.`);
-            executeApp();
-        })
-    })
-};
-
-async function roleSum() {
-    console.log(' ');
-    await db.query('SELECT r.id, title, salary, name AS store FROM role r LEFT JOIN store d ON store_id = d.id', (err, res) => {
-        if (err) throw err;
-        console.table(res);
+  inquirer
+    .prompt([
+      {
+        name: "roleName",
+        type: "list",
+        message: "Which role would you like to update?",
+        choices: roles.map((obj) => obj.title),
+      },
+    ])
+    .then((response) => {
+      if (response.roleName == "Cancel") {
         executeApp();
-    })
-};
-
-async function addRole() {
-    let store = await db.query('SELECT id, name FROM store');
-
-    inquirer.prompt([
-        {
-            name: "role",
-            type: "input",
-            message: "Enter role:",
-        },
-        {
+        return;
+      }
+      inquirer
+        .prompt([
+          {
             name: "salary",
             type: "input",
-            message: "Enter salary:",
-            validate: input => {
-                if (!isNaN(input)) {
-                    return true;
-                }
-                return "Please enter a valid number."
-            }
-        },
-        {
+            message: "Enter annual salary:",
+            validate: (input) => {
+              if (!isNaN(input)) {
+                return true;
+              }
+              return "Please enter a valid number.";
+            },
+          },
+          {
             name: "uptdRoleDept",
             type: "list",
-            message: "Select role store:",
-            choices: store.map(obj => obj.name)
-        }
-    ]).then(answers => {
-        let depID = store.find(obj => obj.name === answers.uptdRoleDept).id
-        db.query("INSERT INTO role (title, salary, store_id) VALUES (?)", [[answers.role, answers.salary, depID]]);
-        console.log("\x1b[32m", `${answers.role} was added. store: ${answers.uptdRoleDept}`);
-        executeApp();
-    })
-};
+            message: "Choose the role's store:",
+            choices: store.map((obj) => obj.name),
+          },
+        ])
+        .then((answers) => {
+          let depID = store.find((obj) => obj.name === answers.uptdRoleDept).id;
+          let roleID = roles.find((obj) => obj.title === response.roleName).id;
+          db.query("UPDATE role SET title=?, salary=?, store_id=? WHERE id=?", [
+            response.roleName,
+            answers.salary,
+            depID,
+            roleID,
+          ]);
+          console.log("\x1b[32m", `${response.roleName} was updated.`);
+          executeApp();
+        });
+    });
+}
+
+async function roleSum() {
+  console.log(" ");
+  await db.query(
+    "SELECT r.id, title, salary, name AS store FROM role r LEFT JOIN store d ON store_id = d.id",
+    (err, res) => {
+      if (err) throw err;
+      console.table(res);
+      executeApp();
+    }
+  );
+}
+
+async function addRole() {
+  let store = await db.query("SELECT id, name FROM store");
+
+  inquirer
+    .prompt([
+      {
+        name: "role",
+        type: "input",
+        message: "Enter role:",
+      },
+      {
+        name: "salary",
+        type: "input",
+        message: "Enter salary:",
+        validate: (input) => {
+          if (!isNaN(input)) {
+            return true;
+          }
+          return "Please enter a valid number.";
+        },
+      },
+      {
+        name: "uptdRoleDept",
+        type: "list",
+        message: "Select role store:",
+        choices: store.map((obj) => obj.name),
+      },
+    ])
+    .then((answers) => {
+      let depID = store.find((obj) => obj.name === answers.uptdRoleDept).id;
+      db.query("INSERT INTO role (title, salary, store_id) VALUES (?)", [
+        [answers.role, answers.salary, depID],
+      ]);
+      console.log(
+        "\x1b[32m",
+        `${answers.role} was added. store: ${answers.uptdRoleDept}`
+      );
+      executeApp();
+    });
+}
 
 async function chngRole() {
-    let employees = await db.query('SELECT id, CONCAT(first_name, " ", last_name) AS name FROM employee');
-    employees.push({ id: null, name: "Cancel" });
-    let roles = await db.query('SELECT id, title FROM role');
+  let employees = await db.query(
+    'SELECT id, CONCAT(first_name, " ", last_name) AS name FROM employee'
+  );
+  employees.push({ id: null, name: "Cancel" });
+  let roles = await db.query("SELECT id, title FROM role");
 
-    inquirer.prompt([
-        {
-            name: "empName",
-            type: "list",
-            message: "Which employee?",
-            choices: employees.map(obj => obj.name)
-        },
-        {
-            name: "newRole",
-            type: "list",
-            message: "Change their role to:",
-            choices: roles.map(obj => obj.title)
-        }
-    ]).then(answers => {
-        if (answers.empName != "Cancel") {
-            let empID = employees.find(obj => obj.name === answers.empName).id
-            let roleID = roles.find(obj => obj.title === answers.newRole).id
-            db.query("UPDATE employee SET role_id=? WHERE id=?", [roleID, empID]);
-            console.log("\x1b[32m", `${answers.empName} new role is ${answers.newRole}`);
-        }
-        executeApp();
-    })
-};
+  inquirer
+    .prompt([
+      {
+        name: "empName",
+        type: "list",
+        message: "Which employee?",
+        choices: employees.map((obj) => obj.name),
+      },
+      {
+        name: "newRole",
+        type: "list",
+        message: "Change their role to:",
+        choices: roles.map((obj) => obj.title),
+      },
+    ])
+    .then((answers) => {
+      if (answers.empName != "Cancel") {
+        let empID = employees.find((obj) => obj.name === answers.empName).id;
+        let roleID = roles.find((obj) => obj.title === answers.newRole).id;
+        db.query("UPDATE employee SET role_id=? WHERE id=?", [roleID, empID]);
+        console.log(
+          "\x1b[32m",
+          `${answers.empName} new role is ${answers.newRole}`
+        );
+      }
+      executeApp();
+    });
+}
 
 async function remvRole() {
-    let roles = await db.query('SELECT id, title FROM role');
-    roles.push({ id: null, title: "Cancel" });
+  let roles = await db.query("SELECT id, title FROM role");
+  roles.push({ id: null, title: "Cancel" });
 
-    inquirer.prompt([
-        {
-            name: "roleName",
-            type: "list",
-            message: "Which role should be removed?",
-            choices: roles.map(obj => obj.title)
-        }
-    ]).then(response => {
-        if (response.roleName != "Cancel") {
-            let roleDel = roles.find(obj => obj.title === response.roleName);
-            db.query("DELETE FROM role WHERE id=?", roleDel.id);
-            console.log("\x1b[32m", `${response.roleName} was removed.`);
-        }
-        executeApp();
-    })
-};
-
-
-
+  inquirer
+    .prompt([
+      {
+        name: "roleName",
+        type: "list",
+        message: "Which role should be removed?",
+        choices: roles.map((obj) => obj.title),
+      },
+    ])
+    .then((response) => {
+      if (response.roleName != "Cancel") {
+        let roleDel = roles.find((obj) => obj.title === response.roleName);
+        db.query("DELETE FROM role WHERE id=?", roleDel.id);
+        console.log("\x1b[32m", `${response.roleName} was removed.`);
+      }
+      executeApp();
+    });
+}
 
 async function showDept() {
-    console.log(' ');
-    await db.query('SELECT id, name AS store FROM store', (err, res) => {
-        if (err) throw err;
-        console.table(res);
-        executeApp();
-    })
-};
+  console.log(" ");
+  await db.query("SELECT id, name AS store FROM store", (err, res) => {
+    if (err) throw err;
+    console.table(res);
+    executeApp();
+  });
+}
 
 async function addDept() {
-    inquirer.prompt([
-        {
-            name: "dept",
-            type: "input",
-            message: "Enter the new store:",
-        }
-    ]).then(answers => {
-        db.query("INSERT INTO store (name) VALUES (?)", [answers.dept]);
-        console.log("\x1b[32m", `${answers.dept} was added to store listing.`);
-        executeApp();
-    })
-};
+  inquirer
+    .prompt([
+      {
+        name: "dept",
+        type: "input",
+        message: "Enter the new store:",
+      },
+    ])
+    .then((answers) => {
+      db.query("INSERT INTO store (name) VALUES (?)", [answers.dept]);
+      console.log("\x1b[32m", `${answers.dept} was added to store listing.`);
+      executeApp();
+    });
+}
 
-console.log ('Welcome to the employee tracker!')
+console.log("Welcome to the employee tracker!");
 
-executeApp ();
+executeApp();
